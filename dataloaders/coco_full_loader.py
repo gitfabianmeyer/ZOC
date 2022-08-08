@@ -48,7 +48,7 @@ class my_coco_detetction():
         return img, cap_list
 
 
-def get_clip_image_features(coco_dataset, split, clip_backbone, device):
+def get_clip_image_features(coco_dataset, split, clip_backbone, clip_model, device):
 
     features_path ='./dataloaders/processed_coco/{}/5xCaptions/full_coco_clip_features_{}.npy'.format(clip_backbone, split)
     if os.path.isfile(features_path):
@@ -56,7 +56,6 @@ def get_clip_image_features(coco_dataset, split, clip_backbone, device):
             clip_out_all = np.load(e, allow_pickle=True)
     else:
         print('calculating all clip image encoder features')
-        clip_model = torch.jit.load(os.path.join('./trained_models', "{}.pt".format(clip_backbone))).to(device).eval()
         loader = DataLoader(dataset=coco_dataset, batch_size=128, shuffle=False, collate_fn=collate_fn)
         clip_out_all = []
         with torch.no_grad():
@@ -111,14 +110,14 @@ def collate_fn(batch):
     return tuple(zip(*batch))
 
 
-def get_loader(train, clip_backbone):
+def get_loader(train, clip_backbone, clip_model):
     if train:
         split='train'
     else:
         split='val'
 
     coco_dataset = my_coco_detetction(train)
-    clip_features = get_clip_image_features(coco_dataset, split, clip_backbone, device='cuda')
+    clip_features = get_clip_image_features(coco_dataset, split, clip_backbone, clip_model, device='cuda')
     input_ids, attention_mask, label_ids = get_bert_training_features(coco_dataset, split, clip_backbone)
     input_ids = torch.tensor(input_ids, dtype=torch.long)
     attention_mask = torch.tensor(attention_mask, dtype=torch.long)
