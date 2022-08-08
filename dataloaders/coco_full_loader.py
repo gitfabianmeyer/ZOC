@@ -49,12 +49,14 @@ class my_coco_detetction():
 
 
 def get_clip_image_features(coco_dataset, split, clip_backbone, device):
-    clip_model = torch.jit.load(os.path.join('./trained_models', "{}.pt".format(clip_backbone))).to(device).eval()
-    if os.path.isfile('./dataloaders/processed_coco/{}/5xCaptions/full_coco_clip_features_{}.npy'.format(clip_backbone, split)):
-        with open('./dataloaders/processed_coco/{}/5xCaptions/full_coco_clip_features_{}.npy'.format(clip_backbone, split), 'rb') as e:
+
+    features_path ='./dataloaders/processed_coco/{}/5xCaptions/full_coco_clip_features_{}.npy'.format(clip_backbone, split)
+    if os.path.isfile(features_path):
+        with open(features_path, 'rb') as e:
             clip_out_all = np.load(e, allow_pickle=True)
     else:
         print('calculating all clip image encoder features')
+        clip_model = torch.jit.load(os.path.join('./trained_models', "{}.pt".format(clip_backbone))).to(device).eval()
         loader = DataLoader(dataset=coco_dataset, batch_size=128, shuffle=False, collate_fn=collate_fn)
         clip_out_all = []
         with torch.no_grad():
@@ -64,7 +66,10 @@ def get_clip_image_features(coco_dataset, split, clip_backbone, device):
                 clip_out = clip_model.encode_image(images.to(device))
                 clip_out_all.append(clip_out.cpu().numpy())
             clip_out_all = np.concatenate(clip_out_all)
-        with open('./dataloaders/processed_coco/{}/5xCaptions/full_coco_clip_features_{}.npy'.format(clip_backbone, split), 'wb') as e:
+
+        if not os.path.exists('./dataloaders/processed_coco/{}/5xCaptions/'.format(clip_backbone)):
+            os.makedirs('./dataloaders/processed_coco/{}/5xCaptions/'.format(clip_backbone))
+        with open(features_path, 'wb') as e:
             np.save(e, clip_out_all, allow_pickle=True)
 
     return clip_out_all
