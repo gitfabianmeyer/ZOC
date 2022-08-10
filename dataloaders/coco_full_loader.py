@@ -54,6 +54,7 @@ def get_clip_image_features(coco_dataset, split, clip_backbone, clip_model, devi
     if os.path.isfile(features_path):
         with open(features_path, 'rb') as e:
             clip_out_all = np.load(e, allow_pickle=True)
+            print(f"Loaded CLIP pretrained features")
     else:
         print('calculating all clip image encoder features')
         loader = DataLoader(dataset=coco_dataset, batch_size=128, shuffle=False, collate_fn=collate_fn)

@@ -16,6 +16,7 @@ def train_decoder(bert_model, train_loader, eval_loader, optimizer):
         for i, batch in enumerate(tqdm(train_loader)):
             # if i==1:break
             input_ids, attention_mask, label_ids, clip_embeds = batch
+            print(f"After unpacking batch: {type(input_ids), type(attention_mask), type(label_ids), type(clip_embeds)}")
             clip_extended_embed = clip_embeds.repeat(1, 2).type(torch.FloatTensor)
 
             N, seq_length = input_ids.shape
