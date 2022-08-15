@@ -9,6 +9,7 @@ from tqdm import tqdm
 from transformers import BertGenerationTokenizer
 import copy
 
+PATH = '/mnt/c/Users/fmeyer/Git'
 
 class my_coco_detetction():
     def __init__(self, train=True):
@@ -27,8 +28,10 @@ class my_coco_detetction():
             Normalize((0.4913, 0.4821, 0.4465), (0.2470, 0.2434, 0.2615))
         ])
 
-        self.coco_dataset = CocoDetection(root=os.path.join('./data/MS-COCO/images', filename),
-                                 annFile=os.path.join('./data/MS-COCO/annotations', 'captions_{}.json'.format(filename)))
+        self.coco_dataset = CocoDetection(
+            root=os.path.join(f'{PATH}/ZOC/data/MS-COCO/images', filename),
+            annFile=os.path.join('{}/ZOC/data/MS-COCO/annotations'.format(PATH),
+                                 'captions_{}.json'.format(filename)))
 
     def __len__(self):
         return len(self.coco_dataset)
@@ -36,21 +39,21 @@ class my_coco_detetction():
     def __getitem__(self, index):
         img = self.transform(self.coco_dataset[index][0])
         captions = self.coco_dataset[index][1]
-        cap_list=[]
+        cap_list = []
         for i, caption in enumerate(captions):
-            if i==5:
-                #print('more than 5 captions for this image', index)
+            if i == 5:
+                # print('more than 5 captions for this image', index)
                 break
             cap = caption['caption']
             cap_list.append(cap)
-        if len(cap_list)<5:
-           print('has less than 5 captions', index)
+        if len(cap_list) < 5:
+            print('has less than 5 captions', index)
         return img, cap_list
 
 
 def get_clip_image_features(coco_dataset, split, clip_backbone, clip_model, device):
-
-    features_path ='./dataloaders/processed_coco/{}/5xCaptions/full_coco_clip_features_{}.npy'.format(clip_backbone, split)
+    features_path = '{}/ZOC/dataloaders/processed_coco/{}/5xCaptions/full_coco_clip_features_{}.npy'.format(PATH,
+        clip_backbone, split)
     if os.path.isfile(features_path):
         with open(features_path, 'rb') as e:
             clip_out_all = np.load(e, allow_pickle=True)
@@ -61,8 +64,8 @@ def get_clip_image_features(coco_dataset, split, clip_backbone, clip_model, devi
         clip_out_all = []
         with torch.no_grad():
             for i, (images, annot) in enumerate(tqdm(loader)):
-                #if i == 1: break
-                images =torch.stack(images)
+                # if i == 1: break
+                images = torch.stack(images)
                 clip_out = clip_model.encode_image(images.to(device))
                 clip_out_all.append(clip_out.cpu().numpy())
             clip_out_all = np.concatenate(clip_out_all)
@@ -76,34 +79,58 @@ def get_clip_image_features(coco_dataset, split, clip_backbone, clip_model, devi
 
 
 def get_bos_sentence_eos(coco_dataset, berttokenizer, split, clip_backbone):
-    if os.path.isfile('./dataloaders/processed_coco/{}/5xCaptions/full_coco_processed_annot_{}.npy'.format(clip_backbone, split)):
-        with open('./dataloaders/processed_coco/{}/5xCaptions/full_coco_processed_annot_{}.npy'.format(clip_backbone, split), 'rb') as e:
+    if os.path.isfile(
+            '{}/ZOC/dataloaders/processed_coco/{}/5xCaptions/full_coco_processed_annot_{}.npy'.format(
+                PATH, clip_backbone, split)):
+        with open(
+                '{}/ZOC/dataloaders/processed_coco/{}/5xCaptions/full_coco_processed_annot_{}.npy'.format(PATH,
+                    clip_backbone, split), 'rb') as e:
             bos_sentence_eos = np.load(e, allow_pickle=True)
             bos_sentence_eos = bos_sentence_eos.tolist()
     else:
         print('preprocessing all sentences...')
         bos_sentence_eos = []
         for i, (image, captions) in enumerate(tqdm(coco_dataset)):
-            #if i==128:break
+            # if i==128:break
             for caption in captions:
                 bos_sentence_eos.append(berttokenizer.bos_token + ' ' + caption + ' ' + berttokenizer.eos_token)
-        with open('./dataloaders/processed_coco/{}/5xCaptions/full_coco_processed_annot_{}.npy'.format(clip_backbone, split), 'wb') as e:
+        with open(
+                '{}/ZOC/dataloaders/processed_coco/{}/5xCaptions/full_coco_processed_annot_{}.npy'.format(PATH,
+                    clip_backbone, split), 'wb') as e:
             np.save(e, bos_sentence_eos, allow_pickle=True)
     return bos_sentence_eos
 
 
-def get_bert_training_features(coco_dataset, train, clip_backbone):
-    berttokenizer = BertGenerationTokenizer.from_pretrained('google/bert_for_seq_generation_L-24_bbc_encoder')
-    sentences = get_bos_sentence_eos(coco_dataset, berttokenizer, train, clip_backbone)
-    print('tokenizing all processed sentences...')
-    tokenized = berttokenizer(sentences, padding=True,
+def get_bert_training_features(coco_dataset, split, clip_backbone, tokenizer):
+
+    if os.path.isfile(
+            '{}/ZOC/dataloaders/processed_coco/{}/5xCaptions/input_ids_{}.npy'.format(
+                PATH, clip_backbone, split)):
+        input_ids = np.load('{}/ZOC/dataloaders/processed_coco/{}/5xCaptions/input_ids_{}.npy'.format(
+                    PATH, clip_backbone, split))
+        label_ids = np.load('{}/ZOC/dataloaders/processed_coco/{}/5xCaptions/label_ids_{}.npy'.format(
+                    PATH, clip_backbone, split))
+        attention_mask = np.load('{}/ZOC/dataloaders/processed_coco/{}/5xCaptions/attention_mask_{}.npy'.format(
+                    PATH, clip_backbone, split))
+
+    else:
+        sentences = get_bos_sentence_eos(coco_dataset, tokenizer, split, clip_backbone)
+        print(f'tokenizing all processed sentences for {split}...')
+        tokenized = tokenizer(sentences, padding=True,
                               truncation=True, max_length=77,
                               return_token_type_ids=False, return_tensors='np')
 
-    label_ids = copy.deepcopy(tokenized['input_ids'])
-    label_ids[label_ids == 0] = -100
-    input_ids = tokenized['input_ids']
-    attention_mask = tokenized['attention_mask']
+        label_ids = copy.deepcopy(tokenized['input_ids'])
+        label_ids[label_ids == 0] = -100
+        input_ids = tokenized['input_ids']
+        attention_mask = tokenized['attention_mask']
+        np.save('{}/ZOC/dataloaders/processed_coco/{}/5xCaptions/input_ids_{}.npy'.format(
+                    PATH, clip_backbone, split), input_ids)
+        np.save('{}/ZOC/dataloaders/processed_coco/{}/5xCaptions/label_ids_{}.npy'.format(
+                    PATH, clip_backbone, split), label_ids)
+        np.save('{}/ZOC/dataloaders/processed_coco/{}/5xCaptions/attention_mask_{}.npy'.format(
+                    PATH, clip_backbone, split), label_ids)
+
     return input_ids, attention_mask, label_ids
 
 
@@ -111,33 +138,33 @@ def collate_fn(batch):
     return tuple(zip(*batch))
 
 
-def get_loader(train, clip_backbone, clip_model):
+def get_loader(train, clip_backbone, clip_model, berttokenizer):
     if train:
-        split='train'
+        split = 'train'
     else:
-        split='val'
+        split = 'val'
 
     coco_dataset = my_coco_detetction(train)
     clip_features = get_clip_image_features(coco_dataset, split, clip_backbone, clip_model, device='cuda')
-    input_ids, attention_mask, label_ids = get_bert_training_features(coco_dataset, split, clip_backbone)
+    input_ids, attention_mask, label_ids = get_bert_training_features(coco_dataset, split, clip_backbone, berttokenizer)
     input_ids = torch.tensor(input_ids, dtype=torch.long)
     attention_mask = torch.tensor(attention_mask, dtype=torch.long)
     label_ids = torch.tensor(label_ids, dtype=torch.long)
     clip_features = torch.tensor(clip_features, dtype=torch.long)
     print(input_ids.size(), attention_mask.size(), label_ids.size(), clip_features.size())
     hidden_size = clip_features.size(1)
-    print(clip_features.repeat(1,5).view(-1, hidden_size).size())
-    dataset = TensorDataset(input_ids, attention_mask, label_ids, clip_features.repeat(1,5).view(-1, hidden_size))
-    loader = DataLoader(dataset=dataset, batch_size=128, num_workers=8, shuffle=True)
+    print(clip_features.repeat(1, 5).view(-1, hidden_size).size())
+    dataset = TensorDataset(input_ids, attention_mask, label_ids, clip_features.repeat(1, 5).view(-1, hidden_size))
+    loader = DataLoader(dataset=dataset, batch_size=4, num_workers=1, shuffle=True)
     return loader
 
 
-if __name__=='__main__':
-    #with open('./processed_coco/{}/coco_clip_features_{}.npy'.format('ViT-B32', 'train'),'rb') as e:
+if __name__ == '__main__':
+    # with open('./processed_coco/{}/coco_clip_features_{}.npy'.format('ViT-B32', 'train'),'rb') as e:
     #    clip_out_all = np.load(e, allow_pickle=True)
-    #print(np.shape(clip_out_all))
+    # print(np.shape(clip_out_all))
 
     dset = my_coco_detetction(train=True)
-    max_length=0
+    max_length = 0
     for i, (image, captions) in enumerate(tqdm(dset)):
         pass

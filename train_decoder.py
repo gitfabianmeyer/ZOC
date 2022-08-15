@@ -1,6 +1,8 @@
 import argparse
+
+import clip
 import torch
-from transformers import BertGenerationTokenizer, BertGenerationDecoder, BertGenerationConfig
+from transformers import BertGenerationTokenizer, BertGenerationDecoder, BertGenerationConfig, BertTokenizer
 import os
 from dataloaders.coco_full_loader import get_loader
 from clip.simple_tokenizer import SimpleTokenizer as clip_tokenizer
@@ -16,7 +18,6 @@ def train_decoder(bert_model, train_loader, eval_loader, optimizer):
         for i, batch in enumerate(tqdm(train_loader)):
             # if i==1:break
             input_ids, attention_mask, label_ids, clip_embeds = batch
-            print(f"After unpacking batch: {type(input_ids), type(attention_mask), type(label_ids), type(clip_embeds)}")
             clip_extended_embed = clip_embeds.repeat(1, 2).type(torch.FloatTensor)
 
             N, seq_length = input_ids.shape
@@ -81,6 +82,7 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', type=float, default=1e-4)
     parser.add_argument('--num_epochs', type=int, default=1, help="End epoch")  # trained with 25 epochs
     parser.add_argument('--trained_path', type=str, default='./trained_models/COCO/')
+    parser.add_argument('--bert_model', type=str, default='bert-base-uncased')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -90,21 +92,21 @@ if __name__ == '__main__':
         os.makedirs(args.saved_model_path)
 
     # initialize tokenizers for clip and bert, these two use different tokenizers
-    berttokenizer = BertGenerationTokenizer.from_pretrained('google/bert_for_seq_generation_L-24_bbc_encoder')
-    cliptokenizer = clip_tokenizer()
+    berttokenizer = BertTokenizer.from_pretrained(args.bert_model)
 
-    clip_model = torch.jit.load(os.path.join('./trained_models', "{}.pt".format('ViT-B32'))).to(device).eval()
-
+    # clip_model = torch.jit.load(os.path.join('./trained_models', "{}.pt".format('ViT-B32'))).to(device).eval()
+    #clip_model = clip.load('ViT-B/32')
+    clip_model = "Nothing"
     # loader to get preprocessed and encoded (image, caption) from COCO dataset
-    train_loader = get_loader(train=True, clip_backbone='ViT-B32', clip_model=clip_model)
-    eval_loader = get_loader(train=False, clip_backbone='ViT-B32', clip_model=clip_model)
+    train_loader = get_loader(train=True, clip_backbone='ViT-B32', clip_model=clip_model, berttokenizer=berttokenizer)
+    eval_loader = get_loader(train=False, clip_backbone='ViT-B32', clip_model=clip_model, berttokenizer=berttokenizer)
 
     # load clip pretrained image encoder
 
-    bert_config = BertGenerationConfig.from_pretrained("google/bert_for_seq_generation_L-24_bbc_encoder")
+    bert_config = BertGenerationConfig.from_pretrained(args.bert_model)
     bert_config.is_decoder = True
     bert_config.add_cross_attention = True
-    bert_model = BertGenerationDecoder.from_pretrained('google/bert_for_seq_generation_L-24_bbc_encoder',
+    bert_model = BertGenerationDecoder.from_pretrained(args.bert_model,
                                                        config=bert_config).to(device).train()
 
     optimizer = AdamW(bert_model.parameters(), lr=args.lr)
