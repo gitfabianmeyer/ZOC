@@ -82,11 +82,12 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', type=float, default=1e-4)
     parser.add_argument('--num_epochs', type=int, default=1, help="End epoch")  # trained with 25 epochs
     parser.add_argument('--trained_path', type=str, default='./trained_models/COCO/')
-    parser.add_argument('--bert_model', type=str, default='bert-base-uncased')
+    parser.add_argument('--bert_model', type=str, default='google/bert_for_seq_generation_L-24_bbc_encoder')
+    parser.add_argument('--clip_vision', type=str, default='ViT-B/32')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    args.saved_model_path = args.trained_path + '/ViT-B32/'
+    args.saved_model_path = args.trained_path + args.clip_vision
 
     if not os.path.exists(args.saved_model_path):
         os.makedirs(args.saved_model_path)
@@ -98,11 +99,10 @@ if __name__ == '__main__':
         berttokenizer = BertTokenizer.from_pretrained(args.bert_model)
 
     # clip_model = torch.jit.load(os.path.join('./trained_models', "{}.pt".format('ViT-B32'))).to(device).eval()
-    #clip_model = clip.load('ViT-B/32')
-    clip_model = "Nothing"
+    clip_model = clip.load(args.clip_vision)
     # loader to get preprocessed and encoded (image, caption) from COCO dataset
-    train_loader = get_loader(train=True, clip_backbone='ViT-B32', clip_model=clip_model, berttokenizer=berttokenizer)
-    eval_loader = get_loader(train=False, clip_backbone='ViT-B32', clip_model=clip_model, berttokenizer=berttokenizer)
+    train_loader = get_loader(train=True, clip_backbone=args.clip_vision, clip_model=clip_model, berttokenizer=berttokenizer)
+    eval_loader = get_loader(train=False, clip_backbone=args.clip_vision, clip_model=clip_model, berttokenizer=berttokenizer)
 
     # load clip pretrained image encoder
 
