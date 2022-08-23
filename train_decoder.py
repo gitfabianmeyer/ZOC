@@ -99,7 +99,7 @@ if __name__ == '__main__':
         berttokenizer = BertTokenizer.from_pretrained(args.bert_model)
 
     # clip_model = torch.jit.load(os.path.join('./trained_models', "{}.pt".format('ViT-B32'))).to(device).eval()
-    clip_model = clip.load(args.clip_vision)
+    clip_model, _ = clip.load(args.clip_vision)
     # loader to get preprocessed and encoded (image, caption) from COCO dataset
     train_loader = get_loader(train=True, clip_backbone=args.clip_vision, clip_model=clip_model, berttokenizer=berttokenizer)
     eval_loader = get_loader(train=False, clip_backbone=args.clip_vision, clip_model=clip_model, berttokenizer=berttokenizer)
