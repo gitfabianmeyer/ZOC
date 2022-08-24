@@ -11,7 +11,9 @@ from tqdm import tqdm
 
 
 def train_decoder(bert_model, train_loader, eval_loader, optimizer):
+    early_stop = 0
     num_batch = len(iter(train_loader))
+    print(f"Starting training for max {args.num_epochs} epochs...")
     for epoch in range(args.num_epochs):
         acc_loss = 0
         print('Training : epoch {}'.format(epoch))
@@ -45,10 +47,18 @@ def train_decoder(bert_model, train_loader, eval_loader, optimizer):
             torch.save(state, args.saved_model_path + 'model_dump.pt')
         else:
             if validation_loss < best_val_loss:
+                early_stop = 0
                 best_val_loss = validation_loss
                 torch.save(state, args.saved_model_path + 'model_2.pt')
+            else:
+                early_stop += 1
 
         print('Average loss on {} training batches in this epoch:{}\n'.format(num_batch, acc_loss / num_batch))
+
+        if early_stop >= 3:
+            print(f"No improvements on val data for {early_stop} iterations. Breaking now")
+            break
+        
     return acc_loss
 
 
@@ -101,8 +111,10 @@ if __name__ == '__main__':
     # clip_model = torch.jit.load(os.path.join('./trained_models', "{}.pt".format('ViT-B32'))).to(device).eval()
     clip_model, _ = clip.load(args.clip_vision)
     # loader to get preprocessed and encoded (image, caption) from COCO dataset
-    train_loader = get_loader(train=True, clip_backbone=args.clip_vision, clip_model=clip_model, berttokenizer=berttokenizer)
-    eval_loader = get_loader(train=False, clip_backbone=args.clip_vision, clip_model=clip_model, berttokenizer=berttokenizer)
+    train_loader = get_loader(train=True, clip_backbone=args.clip_vision, clip_model=clip_model,
+                              berttokenizer=berttokenizer)
+    eval_loader = get_loader(train=False, clip_backbone=args.clip_vision, clip_model=clip_model,
+                             berttokenizer=berttokenizer)
 
     # load clip pretrained image encoder
 
