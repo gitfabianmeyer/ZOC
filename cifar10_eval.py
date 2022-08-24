@@ -1,6 +1,8 @@
+import os
+
 import argparse
 import torch
-import os
+import clip
 from tqdm import tqdm
 import numpy as np
 from transformers import BertGenerationTokenizer, BertGenerationDecoder, BertGenerationConfig

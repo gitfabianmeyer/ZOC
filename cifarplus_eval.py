@@ -2,6 +2,7 @@ import argparse
 import torch
 from transformers import BertGenerationTokenizer, BertGenerationDecoder, BertGenerationConfig
 import os
+import clip
 from dataloaders.ZO_Clip_loaders import cifarplus_loader
 from clip.simple_tokenizer import SimpleTokenizer as clip_tokenizer
 from tqdm import tqdm
