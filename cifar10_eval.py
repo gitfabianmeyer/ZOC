@@ -25,7 +25,7 @@ def tokenize_for_clip(batch_sentences, tokenizer):
 
 def greedysearch_generation_topk(clip_embed):
     N = 1  # batch has single sample
-    max_len=77
+    max_len = 77
     target_list = [torch.tensor(berttokenizer.bos_token_id)]
     top_k_list = []
     bert_model.eval()
@@ -43,7 +43,7 @@ def greedysearch_generation_topk(clip_embed):
         _, top_k = torch.topk(out.logits, dim=2, k=35)
         top_k_list.append(top_k[:, -1].flatten())
         target_list.append(pred_idx)
-        #if pred_idx == berttokenizer.eos_token_id or len(target_list)==10: #the entitiy word is in at most first 10 words
+        # if pred_idx == berttokenizer.eos_token_id or len(target_list)==10: #the entitiy word is in at most first 10 words
         if len(target_list) == 10:  # the entitiy word is in at most first 10 words
             break
     top_k_list = torch.cat(top_k_list)
@@ -52,34 +52,34 @@ def greedysearch_generation_topk(clip_embed):
 
 def image_decoder(clip_model, berttokenizer, device, image_loaders=None):
     splits = [['airplane', 'automobile', 'truck', 'horse', 'cat', 'bird', 'ship', 'deer', 'dog', 'frog'],
-                   ['airplane', 'automobile', 'truck', 'horse', 'cat', 'bird', 'ship', 'deer', 'dog', 'frog'],
-                   ['airplane', 'bird', 'deer', 'cat', 'horse', 'dog', 'ship', 'automobile', 'frog', 'truck'],
-                   ['dog', 'automobile', 'truck', 'ship', 'horse', 'airplane', 'bird', 'cat', 'deer', 'frog'],
-                   ['dog', 'horse', 'automobile', 'ship', 'deer', 'frog', 'airplane', 'truck', 'bird', 'cat'],
-                   ['ship', 'automobile', 'dog', 'cat', 'deer', 'frog', 'airplane', 'truck', 'bird', 'horse']]
+              ['airplane', 'automobile', 'truck', 'horse', 'cat', 'bird', 'ship', 'deer', 'dog', 'frog'],
+              ['airplane', 'bird', 'deer', 'cat', 'horse', 'dog', 'ship', 'automobile', 'frog', 'truck'],
+              ['dog', 'automobile', 'truck', 'ship', 'horse', 'airplane', 'bird', 'cat', 'deer', 'frog'],
+              ['dog', 'horse', 'automobile', 'ship', 'deer', 'frog', 'airplane', 'truck', 'bird', 'cat'],
+              ['ship', 'automobile', 'dog', 'cat', 'deer', 'frog', 'airplane', 'truck', 'bird', 'horse']]
     ablation_splits = [['airplane', 'automobile', 'truck', 'horse', 'cat', 'bird', 'ship', 'dog', 'deer', 'frog'],
                        ['airplane', 'automobile', 'truck', 'bird', 'ship', 'frog', 'deer', 'dog', 'horse', 'cat']]
-    #ablation_splits = [['horse', 'cat', 'deer', 'frog'],
+    # ablation_splits = [['horse', 'cat', 'deer', 'frog'],
     #                   ['deer', 'frog', 'horse', 'cat']]
 
     auc_list_sum = []
     for split in ablation_splits:
         seen_labels = split[:8]
         seen_descriptions = [f"This is a photo of a {label}" for label in seen_labels]
-        #targets = torch.tensor(6000*[0] + 4000*[1])
-        targets = torch.tensor(8000*[0] + 2000*[1])
-        #targets = torch.tensor(20 * [0] + 20 * [1])
-        max_num_entities=0
+        # targets = torch.tensor(6000*[0] + 4000*[1])
+        targets = torch.tensor(8000 * [0] + 2000 * [1])
+        # targets = torch.tensor(20 * [0] + 20 * [1])
+        max_num_entities = 0
         ood_probs_sum = []
         for i, semantic_label in enumerate(split):
             loader = image_loaders[semantic_label]
             for idx, image in enumerate(tqdm(loader)):
-                #if idx==10:break
+                # if idx==10:break
                 with torch.no_grad():
                     clip_out = clip_model.encode_image(image.to(device)).float()
                 clip_extended_embed = clip_out.repeat(1, 2).type(torch.FloatTensor)
 
-                #greedy generation
+                # greedy generation
                 target_list, topk_list = greedysearch_generation_topk(clip_extended_embed)
 
                 target_tokens = [berttokenizer.decode(int(pred_idx.cpu().numpy())) for pred_idx in target_list]
@@ -97,7 +97,7 @@ def image_decoder(clip_model, berttokenizer, device, image_loaders=None):
                 text_features /= text_features.norm(dim=-1, keepdim=True)
                 zeroshot_probs = (100.0 * image_feature @ text_features.T).softmax(dim=-1).squeeze()
 
-                #detection score is accumulative sum of probs of generated entities
+                # detection score is accumulative sum of probs of generated entities
                 ood_prob_sum = np.sum(zeroshot_probs[6:].detach().cpu().numpy())
                 ood_probs_sum.append(ood_prob_sum)
         auc_sum = roc_auc_score(np.array(targets), np.squeeze(ood_probs_sum))
@@ -121,16 +121,16 @@ if __name__ == '__main__':
     # initialize tokenizers for clip and bert, these two use different tokenizers
     berttokenizer = BertGenerationTokenizer.from_pretrained('google/bert_for_seq_generation_L-24_bbc_encoder')
 
-    clip_model = torch.jit.load(os.path.join('./trained_models', "{}.pt".format('ViT-B/32'))).to(device).eval()
+    # clip_model = torch.jit.load(os.path.join('./trained_models', "{}.pt".format('ViT-B/32'))).to(device).eval()
+    clip_model, _ = clip.load('ViT-B/32')
     cliptokenizer = clip_tokenizer()
 
     bert_config = BertGenerationConfig.from_pretrained("google/bert_for_seq_generation_L-24_bbc_encoder")
-    bert_config.is_decoder=True
-    bert_config.add_cross_attention=True
+    bert_config.is_decoder = True
+    bert_config.add_cross_attention = True
     bert_model = BertGenerationDecoder.from_pretrained('google/bert_for_seq_generation_L-24_bbc_encoder',
                                                        config=bert_config).to(device).train()
     bert_model.load_state_dict(torch.load(args.saved_model_path + 'model.pt')['net'])
 
     cifar10_loaders = cifar10_single_isolated_class_loader()
     image_decoder(clip_model, berttokenizer, device, image_loaders=cifar10_loaders)
-

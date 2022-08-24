@@ -142,7 +142,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    args.saved_model_path = args.trained_path + '/ViT-B/32/'
+    args.saved_model_path = args.trained_path + '/ViT-B32/'
 
     if not os.path.exists(args.saved_model_path):
         os.makedirs(args.saved_model_path)
@@ -150,7 +150,8 @@ if __name__ == '__main__':
     # initialize tokenizers for clip and bert, these two use different tokenizers
     berttokenizer = BertGenerationTokenizer.from_pretrained('google/bert_for_seq_generation_L-24_bbc_encoder')
 
-    clip_model = torch.jit.load(os.path.join('./trained_models', "{}.pt".format('ViT-B/32'))).to(device).eval()
+    #clip_model = torch.jit.load(os.path.join('./trained_models', "{}.pt".format('vitb32_model.pt'))).to(device).eval()
+    clip_model, _ = clip.load('ViT-B/32')
     cliptokenizer = clip_tokenizer()
 
     bert_config = BertGenerationConfig.from_pretrained("google/bert_for_seq_generation_L-24_bbc_encoder")
