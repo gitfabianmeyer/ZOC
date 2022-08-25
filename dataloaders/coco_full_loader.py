@@ -62,7 +62,7 @@ def get_clip_image_features(coco_dataset, split, clip_backbone, clip_model, devi
             print(f"Loaded CLIP pretrained features")
     else:
         print('calculating all clip image encoder features')
-        loader = DataLoader(dataset=coco_dataset, batch_size=128, shuffle=False, collate_fn=collate_fn)
+        loader = DataLoader(dataset=coco_dataset, batch_size=256, shuffle=False, collate_fn=collate_fn)
         clip_out_all = []
         with torch.no_grad():
             for i, (images, annot) in enumerate(tqdm(loader)):
@@ -143,7 +143,7 @@ def get_loader(train, clip_backbone, clip_model, berttokenizer):
     hidden_size = clip_features.size(1)
     print(clip_features.repeat(1, 5).view(-1, hidden_size).size())
     dataset = TensorDataset(input_ids, attention_mask, label_ids, clip_features.repeat(1, 5).view(-1, hidden_size))
-    loader = DataLoader(dataset=dataset, batch_size=32, num_workers=2, shuffle=True)
+    loader = DataLoader(dataset=dataset, batch_size=128, num_workers=2, shuffle=True)
     return loader
 
 
