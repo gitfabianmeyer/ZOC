@@ -6,7 +6,7 @@ from transformers import BertGenerationTokenizer, BertGenerationDecoder, BertGen
 import os
 from dataloaders.coco_full_loader import get_loader
 from clip.simple_tokenizer import SimpleTokenizer as clip_tokenizer
-from transformers import AdamW
+from torch.optim import AdamW
 from tqdm import tqdm
 
 

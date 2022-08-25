@@ -143,7 +143,7 @@ def get_loader(train, clip_backbone, clip_model, berttokenizer):
     hidden_size = clip_features.size(1)
     print(clip_features.repeat(1, 5).view(-1, hidden_size).size())
     dataset = TensorDataset(input_ids, attention_mask, label_ids, clip_features.repeat(1, 5).view(-1, hidden_size))
-    loader = DataLoader(dataset=dataset, batch_size=64, num_workers=1, shuffle=True)
+    loader = DataLoader(dataset=dataset, batch_size=32, num_workers=2, shuffle=True)
     return loader
 
 
