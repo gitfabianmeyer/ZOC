@@ -1,3 +1,7 @@
+import os
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
 import argparse
 import torch
 from transformers import BertGenerationTokenizer, BertGenerationDecoder, BertGenerationConfig
@@ -65,29 +69,29 @@ def image_decoder(clip_model, berttokenizer, device, split, image_loaders=None):
         for idx, image in enumerate(tqdm(loader)):
             with torch.no_grad():
                 clip_out = clip_model.encode_image(image.to(device)).float()
-            clip_extended_embed = clip_out.repeat(1, 2).type(torch.FloatTensor)
+                clip_extended_embed = clip_out.repeat(1, 2).type(torch.FloatTensor)
 
-            #greedy generation
-            target_list, topk_list = greedysearch_generation_topk(clip_extended_embed)
+                #greedy generation
+                target_list, topk_list = greedysearch_generation_topk(clip_extended_embed)
 
-            target_tokens = [berttokenizer.decode(int(pred_idx.cpu().numpy())) for pred_idx in target_list]
-            topk_tokens = [berttokenizer.decode(int(pred_idx.cpu().numpy())) for pred_idx in topk_list]
+                target_tokens = [berttokenizer.decode(int(pred_idx.cpu().numpy())) for pred_idx in target_list]
+                topk_tokens = [berttokenizer.decode(int(pred_idx.cpu().numpy())) for pred_idx in topk_list]
 
-            unique_entities = list(set(topk_tokens) - set(seen_labels))
-            if len(unique_entities) > max_num_entities:
-                max_num_entities = len(unique_entities)
-            all_desc = seen_descriptions + [f"This is a photo of a {label}" for label in unique_entities]
-            all_desc_ids = tokenize_for_clip(all_desc, cliptokenizer)
+                unique_entities = list(set(topk_tokens) - set(seen_labels))
+                if len(unique_entities) > max_num_entities:
+                    max_num_entities = len(unique_entities)
+                all_desc = seen_descriptions + [f"This is a photo of a {label}" for label in unique_entities]
+                all_desc_ids = tokenize_for_clip(all_desc, cliptokenizer)
 
-            image_feature = clip_model.encode_image(image.cuda()).float()
-            image_feature /= image_feature.norm(dim=-1, keepdim=True)
-            text_features = clip_model.encode_text(all_desc_ids.cuda()).float()
-            text_features /= text_features.norm(dim=-1, keepdim=True)
-            zeroshot_probs = (100.0 * image_feature @ text_features.T).softmax(dim=-1).squeeze()
+                image_feature = clip_model.encode_image(image.cuda()).float()
+                image_feature /= image_feature.norm(dim=-1, keepdim=True)
+                text_features = clip_model.encode_text(all_desc_ids.cuda()).float()
+                text_features /= text_features.norm(dim=-1, keepdim=True)
+                zeroshot_probs = (100.0 * image_feature @ text_features.T).softmax(dim=-1).squeeze()
 
-            #detection score is accumulative sum of probs of generated entities
-            ood_prob_sum = np.sum(zeroshot_probs[20:].detach().cpu().numpy())
-            ood_probs_sum.append(ood_prob_sum)
+                #detection score is accumulative sum of probs of generated entities
+                ood_prob_sum = np.sum(zeroshot_probs[20:].detach().cpu().numpy())
+                ood_probs_sum.append(ood_prob_sum)
         end_time=time.time()
     auc_sum = roc_auc_score(np.array(targets), np.squeeze(ood_probs_sum))
     print('sum_ood AUROC={}'.format(auc_sum))
@@ -116,7 +120,7 @@ if __name__ == '__main__':
     bert_config.is_decoder=True
     bert_config.add_cross_attention=True
     bert_model = BertGenerationDecoder.from_pretrained('google/bert_for_seq_generation_L-24_bbc_encoder', config=bert_config).to(device).train()
-    bert_model.load_state_dict(torch.load(args.saved_model_path + 'model.pt')['net'])
+    bert_model.load_state_dict(torch.load(args.saved_model_path + 'model_2.pt', map_location=device )['net'])
 
     cifar100_loaders = cifar100_single_isolated_class_loader()
     dset = torchvision.datasets.CIFAR100(root='./data/', train=False, download=True)
