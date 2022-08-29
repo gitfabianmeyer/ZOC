@@ -111,8 +111,11 @@ if __name__ == '__main__':
     # initialize tokenizers for clip and bert, these two use different tokenizers
     berttokenizer = BertGenerationTokenizer.from_pretrained('google/bert_for_seq_generation_L-24_bbc_encoder')
 
-    clip_model = torch.jit.load(os.path.join('./trained_models', "{}.pt".format('ViT-B-32'))).to(device).eval()
+    # clip_model = torch.jit.load(os.path.join('./trained_models', "{}.pt".format('ViT-B/32'))).to(device).eval()
+    clip_model, _ = clip.load('ViT-B/32')
     cliptokenizer = clip_tokenizer()
+    if not os.path.exists(args.saved_model_path):
+        os.makedirs(args.saved_model_path)
 
     bert_config = BertGenerationConfig.from_pretrained("google/bert_for_seq_generation_L-24_bbc_encoder")
     bert_config.is_decoder=True
